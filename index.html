@@ -280,20 +280,36 @@ function showSaveStatus(){
 }
 function saveElValue(el){
   if(!el || !el.id) return;
-  if(el.type === 'checkbox' || el.type === 'radio'){
+
+  if(el.type === 'radio'){
+    if(el.checked){
+      localStorage.setItem(el.name, el.id);   // save group by name
+    }
+  } else if(el.type === 'checkbox'){
     localStorage.setItem(el.id, el.checked);
   } else {
     localStorage.setItem(el.id, el.value);
   }
-  showSaveStatus();
 }
+
 function autoBindSave(el){
-  const saved = localStorage.getItem(el.id);
-  if(saved !== null){
-    if(el.type === 'checkbox' || el.type === 'radio') el.checked = (saved === 'true');
-    else el.value = saved;
+  if(el.type === 'radio'){
+    const savedId = localStorage.getItem(el.name);
+    if(savedId && el.id === savedId){
+      el.checked = true;   // restore only the chosen one
+    }
+    el.addEventListener('change', ()=> saveElValue(el));
   }
-  el.addEventListener((el.type === 'checkbox' || el.type === 'radio') ? 'change' : 'input', ()=> saveElValue(el));
+  else if(el.type === 'checkbox'){
+    const saved = localStorage.getItem(el.id);
+    if(saved !== null) el.checked = (saved === 'true');
+    el.addEventListener('change', ()=> saveElValue(el));
+  }
+  else {
+    const saved = localStorage.getItem(el.id);
+    if(saved !== null) el.value = saved;
+    el.addEventListener('input', ()=> saveElValue(el));
+  }
 }
 
 /* ---------- Universal AutoBind Save + Uppercase ---------- */
