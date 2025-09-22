@@ -533,7 +533,7 @@ let sigTarget = null;
 const sigModal = $("sigModal");
 const sigCanvas = $("sigCanvas");
 const sigCtx = sigCanvas.getContext("2d");
-let drawing = false;
+
 let scaleX = 1, scaleY = 1;
 
 /* Resize canvas to look crisp on any screen size & DPR */
@@ -612,23 +612,72 @@ function getPos(e){
   }
   return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) };
 }
-function startDraw(e){
+let drawing = false;
+let points = [];
+let lastTime = 0, lastX = 0, lastY = 0, lastWidth = 2;
+
+function getLineWidth(x, y) {
+  const now = Date.now();
+  let velocity = 0.1;
+  if (lastTime) {
+    const dt = now - lastTime;
+    const dx = x - lastX;
+    const dy = y - lastY;
+    velocity = Math.sqrt(dx*dx + dy*dy) / (dt || 1);
+  }
+  lastTime = now; lastX = x; lastY = y;
+
+  const minWidth = 1, maxWidth = 3;
+  const newWidth = Math.max(minWidth, Math.min(maxWidth, maxWidth / (velocity + 1)));
+
+  const smoothed = lastWidth * 0.7 + newWidth * 0.3;
+  lastWidth = smoothed;
+  return smoothed;
+}
+
+function startDraw(e) {
   drawing = true;
+  points = [];
+  const {x, y} = getPos(e);
+  points.push({x, y});
+  lastX = x; lastY = y; lastTime = Date.now();
   sigCtx.beginPath();
-  const {x,y}=getPos(e);
   sigCtx.moveTo(x, y);
   e.preventDefault?.();
 }
-function endDraw(){ drawing = false; sigCtx.beginPath(); }
-function moveDraw(e){
-  if(!drawing) return;
-  const {x,y} = getPos(e);
-  sigCtx.lineTo(x, y);
+
+function moveDraw(e) {
+  if (!drawing) return;
+  const {x, y} = getPos(e);
+  points.push({x, y});
+  const width = getLineWidth(x, y);
+  sigCtx.lineWidth = width;
+
+  if (points.length < 3) {
+    sigCtx.lineTo(x, y);
+    sigCtx.stroke();
+    return;
+  }
+
+  const prev = points[points.length - 3];
+  const mid = {
+    x: (prev.x + x) / 2,
+    y: (prev.y + y) / 2
+  };
+  sigCtx.quadraticCurveTo(prev.x, prev.y, mid.x, mid.y);
   sigCtx.stroke();
-  sigCtx.beginPath();
-  sigCtx.moveTo(x, y);
+
   e.preventDefault?.();
 }
+
+function endDraw() {
+  if (!drawing) return;
+  drawing = false;
+  points = [];
+  sigCtx.beginPath();
+}
+
+/* Event bindings stay the same */
 sigCanvas.addEventListener("mousedown", startDraw);
 sigCanvas.addEventListener("mousemove", moveDraw);
 window.addEventListener("mouseup", endDraw);
