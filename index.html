@@ -537,22 +537,31 @@ const sigCtx = sigCanvas.getContext("2d");
 let scaleX = 1, scaleY = 1;
 
 /* Resize canvas to look crisp on any screen size & DPR */
-function resizeSigCanvas(){
+function resizeSigCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = sigCanvas.clientWidth || sigCanvas.parentElement.clientWidth || 560;
   const cssHeight = sigCanvas.clientHeight || 220;
+
+  // Set actual drawing buffer size (scaled by DPR)
   sigCanvas.width = Math.max(1, Math.floor(cssWidth * dpr));
   sigCanvas.height = Math.max(1, Math.floor(cssHeight * dpr));
-  sigCtx.setTransform(1,0,0,1,0,0); // reset
+
+  // Reset transforms and scale back to CSS pixels
+  sigCtx.setTransform(1, 0, 0, 1, 0, 0);
   sigCtx.scale(dpr, dpr);
-  sigCtx.lineWidth = 2;
+
+  // Stroke style defaults
   sigCtx.lineCap = "round";
+  sigCtx.lineJoin = "round"; // better for curves
   sigCtx.strokeStyle = "#000";
-  scaleX = sigCanvas.width / (sigCanvas.getBoundingClientRect().width || cssWidth);
-  scaleY = sigCanvas.height / (sigCanvas.getBoundingClientRect().height || cssHeight);
+
   // White background (prevents transparent PNG on PDFs)
-  //sigCtx.fillStyle = "#fff";
-  //sigCtx.fillRect(0,0,sigCanvas.width/scaleX, sigCanvas.height/scaleY);
+  // sigCtx.fillStyle = "#fff";
+  // sigCtx.fillRect(0,0,cssWidth,cssHeight);
+
+  // Update scale factors for getPos()
+  scaleX = sigCanvas.width / cssWidth;
+  scaleY = sigCanvas.height / cssHeight;
 }
 
 function openSig(target){
