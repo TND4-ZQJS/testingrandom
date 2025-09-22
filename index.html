@@ -627,6 +627,7 @@ let drawing = false;
 let points = [];
 let lastTime = 0, lastX = 0, lastY = 0, lastWidth = 2;
 
+// 🎨 dynamic width with pressure noise
 function getLineWidth(x, y) {
   const now = Date.now();
   let velocity = 0.1;
@@ -641,7 +642,9 @@ function getLineWidth(x, y) {
   const minWidth = 1, maxWidth = 3;
   const newWidth = Math.max(minWidth, Math.min(maxWidth, maxWidth / (velocity + 1)));
 
-  const smoothed = lastWidth * 0.7 + newWidth * 0.3;
+  // 🖊 add slight random "pressure" effect
+  const noise = (Math.random() - 0.5) * 0.2; // -0.1 to +0.1 variation
+  const smoothed = lastWidth * 0.7 + (newWidth + noise) * 0.3;
   lastWidth = smoothed;
   return smoothed;
 }
@@ -652,6 +655,10 @@ function startDraw(e) {
   const {x, y} = getPos(e);
   points.push({x, y});
   lastX = x; lastY = y; lastTime = Date.now();
+
+  // 🖌 softer stroke color each time
+  sigCtx.strokeStyle = `rgba(0,0,0,${0.85 + Math.random()*0.1})`; // 0.85–0.95 opacity
+
   sigCtx.beginPath();
   sigCtx.moveTo(x, y);
   e.preventDefault?.();
@@ -687,6 +694,7 @@ function endDraw() {
   points = [];
   sigCtx.beginPath();
 }
+
 
 
 /* Event bindings stay the same */
