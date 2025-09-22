@@ -257,6 +257,7 @@
 <div id="saveStatus">Saved</div>
 
 <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.0.0/dist/signature_pad.umd.min.js"></script>
 <script>
 /* ---------- CONFIG ---------- */
 const PDF_FILENAME = "Nomination and Trustees_LF4056_LF4054_fillable.pdf";
@@ -532,39 +533,25 @@ addNomineeBtn.disabled = nomineeCount >= MAX_NOMINEES;
 let sigTarget = null;
 const sigModal = $("sigModal");
 const sigCanvas = $("sigCanvas");
-const sigCtx = sigCanvas.getContext("2d");
 
-let scaleX = 1, scaleY = 1;
+ const signaturePad = new SignaturePad(sigCanvas, {
+  minWidth: 1,
+  maxWidth: 3,
+  penColor: "black",
+  backgroundColor: "white"
+});
 
-/* Resize canvas to look crisp on any screen size & DPR */
-function resizeSigCanvas() {
-  const dpr = window.devicePixelRatio || 1;
-  const cssWidth = sigCanvas.clientWidth || sigCanvas.parentElement.clientWidth || 560;
-  const cssHeight = sigCanvas.clientHeight || 220;
-
-  // Set actual drawing buffer size (scaled by DPR)
-  sigCanvas.width = Math.max(1, Math.floor(cssWidth * dpr));
-  sigCanvas.height = Math.max(1, Math.floor(cssHeight * dpr));
-
-  // Reset transforms and scale back to CSS pixels
-  sigCtx.setTransform(1, 0, 0, 1, 0, 0);
-  sigCtx.scale(dpr, dpr);
-
-  // Stroke style defaults
-  sigCtx.lineCap = "round";
-  sigCtx.lineJoin = "round"; // better for curves
-  sigCtx.strokeStyle = "#000";
-  sigCtx.lineWidth = 2;
-
-  // White background (prevents transparent PNG on PDFs)
-  // sigCtx.fillStyle = "#fff";
-  // sigCtx.fillRect(0,0,cssWidth,cssHeight);
-
-  // Update scale factors for getPos()
-  scaleX = sigCanvas.width / cssWidth;
-  scaleY = sigCanvas.height / cssHeight;
+function resizeCanvas() {
+  const ratio = Math.max(window.devicePixelRatio || 1, 1);
+  sigCanvas.width = sigCanvas.offsetWidth * ratio;
+  sigCanvas.height = sigCanvas.offsetHeight * ratio;
+  sigCanvas.getContext("2d").scale(ratio, ratio);
+  signaturePad.clear();
 }
+window.addEventListener("resize", resizeCanvas);
 
+ 
+  
 function openSig(target){
   sigTarget = target; // 'owner' | 'witness' | 'trustee'
 
@@ -581,7 +568,7 @@ if (target === 'owner') {
 
   // Next frame: ensure layout settled then resize canvas
   requestAnimationFrame(()=>{
-    resizeSigCanvas();
+    resizeCanvas();
     // If there is an existing signature, draw it to current canvas size
     const existing = localStorage.getItem("sig_"+target);
     if (existing){
@@ -595,7 +582,8 @@ if (target === 'owner') {
   });
 }
 $("sigClear").addEventListener("click", ()=>{
-  sigCtx.clearRect(0,0,sigCanvas.width, sigCanvas.height);
+  signaturePad.clear();
+});
   // Repaint white bg in CSS pixels
   //sigCtx.fillStyle="#fff"; sigCtx.fillRect(0,0,sigCanvas.width/scaleX, sigCanvas.height/scaleY);
 });
@@ -607,107 +595,14 @@ function closeSigModal(){
 }
 $("sigDone").addEventListener("click", ()=>{
   if(!sigTarget) return;
-  const dataURL = sigCanvas.toDataURL("image/png");
+  const dataURL = signaturePad.toDataURL("image/png");  // ✅ new
   localStorage.setItem("sig_"+sigTarget, dataURL);
   const preview = $("preview_"+sigTarget);
   preview.innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
   closeSigModal();
 });
 
-/* Drawing (mouse + touch) with coordinate conversion */
-function getPos(e){
-  const rect = sigCanvas.getBoundingClientRect();
-  if(e.touches && e.touches[0]){
-    return { x: (e.touches[0].clientX - rect.left), y: (e.touches[0].clientY - rect.top) };
-  }
-  return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) };
-}
 
-let drawing = false;
-let points = [];
-let lastTime = 0, lastX = 0, lastY = 0, lastWidth = 2;
-let noiseOffset = 0; // keep track of smooth noise
-  
-
-// 🎨 dynamic width with pressure noise
-function getLineWidth(x, y) {
-  const now = Date.now();
-  let velocity = 0.1;
-  if (lastTime) {
-    const dt = now - lastTime;
-    const dx = x - lastX;
-    const dy = y - lastY;
-    velocity = Math.sqrt(dx*dx + dy*dy) / (dt || 1);
-  }
-  lastTime = now; lastX = x; lastY = y;
-
-  const minWidth = 1, maxWidth = 3;
-  const newWidth = Math.max(minWidth, Math.min(maxWidth, maxWidth / (velocity + 1)));
-
-  // 🖊 add slight random "pressure" effect
-noiseOffset = noiseOffset * 0.9 + (Math.random() - 0.5) * 0.1;
-const withNoise = newWidth + noiseOffset;
-const smoothed = lastWidth * 0.8 + withNoise * 0.2;
-
-  lastWidth = smoothed;
-  return smoothed;
-}
-
-function startDraw(e) {
-  drawing = true;
-  points = [];
-  const {x, y} = getPos(e);
-  points.push({x, y});
-  lastX = x; lastY = y; lastTime = Date.now();
-
-  // 🖌 softer stroke color each time
-  sigCtx.strokeStyle = `rgba(0,0,0,${0.85 + Math.random()*0.1})`; // 0.85–0.95 opacity
-
-  sigCtx.beginPath();
-  sigCtx.moveTo(x, y);
-  e.preventDefault?.();
-}
-
-function moveDraw(e) {
-  if (!drawing) return;
-  const {x, y} = getPos(e);
-  points.push({x, y});
-  const width = getLineWidth(x, y);
-  sigCtx.lineWidth = width;
-
-  if (points.length < 3) {
-    sigCtx.lineTo(x, y);
-    sigCtx.stroke();
-    return;
-  }
-
-  const prev = points[points.length - 3];
-  const mid = {
-    x: (prev.x + x) / 2,
-    y: (prev.y + y) / 2
-  };
-  sigCtx.quadraticCurveTo(prev.x, prev.y, mid.x, mid.y);
-  sigCtx.stroke();
-
-  e.preventDefault?.();
-}
-
-function endDraw() {
-  if (!drawing) return;
-  drawing = false;
-  points = [];
-  sigCtx.beginPath();
-}
-
-
-
-/* Event bindings stay the same */
-sigCanvas.addEventListener("mousedown", startDraw);
-sigCanvas.addEventListener("mousemove", moveDraw);
-window.addEventListener("mouseup", endDraw);
-sigCanvas.addEventListener("touchstart", startDraw, {passive:false});
-sigCanvas.addEventListener("touchmove", moveDraw, {passive:false});
-sigCanvas.addEventListener("touchend", endDraw);
 window.addEventListener("resize", ()=> {
   // Only resize when modal is open to avoid reflow glitches
   if(sigModal.getAttribute("aria-hidden")==="false"){ 
