@@ -537,10 +537,17 @@ const sigCanvas = $("sigCanvas");
 const sigCtx = sigCanvas.getContext("2d");
 
 const signaturePad = new SignaturePad(sigCanvas, {
-  minWidth: 1,
-  maxWidth: 3,
-  penColor: "black",
-  backgroundColor: "white"
+  minWidth: 0.7,              // Thin lines when moving fast
+  maxWidth: 2.5,              // Thicker when moving slowly
+  velocityFilterWeight: 0.6,  // More responsive to speed, but still smooth
+  minDistance: 3,             // Capture detail without too many points
+  throttle: 16,               // ~60 FPS, smooth without lag
+  penColor: "black",          // Signature color
+  backgroundColor: "rgba(0,0,0,0)" // Transparent background
+  //minWidth: 1,
+  //maxWidth: 3,
+  //penColor: "black",
+  //backgroundColor: "rgba(0,0,0,0)"
 });
 
 function resizeCanvas() {
