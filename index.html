@@ -530,11 +530,13 @@ if (nomineeCount === 0) {
 addNomineeBtn.disabled = nomineeCount >= MAX_NOMINEES;
 
 /* ---------- SIGNATURE MODAL LOGIC (Owner + Payor) with HiDPI scaling ---------- */
+/* ---------- SIGNATURE MODAL LOGIC ---------- */
 let sigTarget = null;
 const sigModal = $("sigModal");
 const sigCanvas = $("sigCanvas");
+const sigCtx = sigCanvas.getContext("2d");
 
- const signaturePad = new SignaturePad(sigCanvas, {
+const signaturePad = new SignaturePad(sigCanvas, {
   minWidth: 1,
   maxWidth: 3,
   penColor: "black",
@@ -545,48 +547,32 @@ function resizeCanvas() {
   const ratio = Math.max(window.devicePixelRatio || 1, 1);
   sigCanvas.width = sigCanvas.offsetWidth * ratio;
   sigCanvas.height = sigCanvas.offsetHeight * ratio;
-  sigCanvas.getContext("2d").scale(ratio, ratio);
+  sigCtx.scale(ratio, ratio);
   signaturePad.clear();
 }
 window.addEventListener("resize", resizeCanvas);
 
- 
-  
 function openSig(target){
-  sigTarget = target; // 'owner' | 'witness' | 'trustee'
-
-if (target === 'owner') {
-  $("sigModalTitle").textContent = "Sign: Policy Owner";
-} else if (target === 'witness') {
-  $("sigModalTitle").textContent = "Sign: Witness";
-} else if (target === 'trustee') {
-  $("sigModalTitle").textContent = "Sign: Trustee";
-}
+  sigTarget = target;
+  $("sigModalTitle").textContent = 
+    target === 'owner' ? "Sign: Policy Owner" :
+    target === 'witness' ? "Sign: Witness" : "Sign: Trustee";
 
   sigModal.style.display = "block";
   sigModal.setAttribute("aria-hidden", "false");
 
-  // Next frame: ensure layout settled then resize canvas
   requestAnimationFrame(()=>{
     resizeCanvas();
-    // If there is an existing signature, draw it to current canvas size
     const existing = localStorage.getItem("sig_"+target);
     if (existing){
       const img = new Image();
-      img.onload = ()=>{
-        // cover the canvas area with existing image
-        sigCtx.drawImage(img, 0, 0, sigCanvas.width/scaleX, sigCanvas.height/scaleY);
-      };
+      img.onload = ()=>{ sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height); };
       img.src = existing;
     }
   });
 }
-$("sigClear").addEventListener("click", ()=>{
-  signaturePad.clear();
-});
-  // Repaint white bg in CSS pixels
-  //sigCtx.fillStyle="#fff"; sigCtx.fillRect(0,0,sigCanvas.width/scaleX, sigCanvas.height/scaleY);
-});
+
+$("sigClear").addEventListener("click", ()=>{ signaturePad.clear(); });
 $("sigCancel").addEventListener("click", closeSigModal);
 function closeSigModal(){
   sigModal.style.display = "none";
@@ -595,25 +581,12 @@ function closeSigModal(){
 }
 $("sigDone").addEventListener("click", ()=>{
   if(!sigTarget) return;
-  const dataURL = signaturePad.toDataURL("image/png");  // ✅ new
+  const dataURL = signaturePad.toDataURL("image/png");
   localStorage.setItem("sig_"+sigTarget, dataURL);
-  const preview = $("preview_"+sigTarget);
-  preview.innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
+  $("preview_"+sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
   closeSigModal();
 });
 
-
-window.addEventListener("resize", ()=> {
-  // Only resize when modal is open to avoid reflow glitches
-  if(sigModal.getAttribute("aria-hidden")==="false"){ 
-    const img = new Image();
-    img.onload = ()=>{
-      resizeSigCanvas();
-      sigCtx.drawImage(img, 0, 0, sigCanvas.width/scaleX, sigCanvas.height/scaleY);
-    };
-    img.src = sigCanvas.toDataURL("image/png");
-  }
-});
 
 /* Clear preview buttons + restore previews on load */
 $("clearPreviewOwner").addEventListener("click", ()=>{
