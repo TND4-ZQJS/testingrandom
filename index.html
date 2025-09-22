@@ -554,6 +554,7 @@ function resizeSigCanvas() {
   sigCtx.lineCap = "round";
   sigCtx.lineJoin = "round"; // better for curves
   sigCtx.strokeStyle = "#000";
+  sigCtx.lineWidth = 2;
 
   // White background (prevents transparent PNG on PDFs)
   // sigCtx.fillStyle = "#fff";
@@ -621,6 +622,7 @@ function getPos(e){
   }
   return { x: (e.clientX - rect.left), y: (e.clientY - rect.top) };
 }
+
 let drawing = false;
 let points = [];
 let lastTime = 0, lastX = 0, lastY = 0, lastWidth = 2;
@@ -685,6 +687,7 @@ function endDraw() {
   points = [];
   sigCtx.beginPath();
 }
+
 
 /* Event bindings stay the same */
 sigCanvas.addEventListener("mousedown", startDraw);
