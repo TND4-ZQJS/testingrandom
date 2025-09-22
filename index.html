@@ -626,6 +626,8 @@ function getPos(e){
 let drawing = false;
 let points = [];
 let lastTime = 0, lastX = 0, lastY = 0, lastWidth = 2;
+let noiseOffset = 0; // keep track of smooth noise
+  
 
 // 🎨 dynamic width with pressure noise
 function getLineWidth(x, y) {
@@ -643,8 +645,10 @@ function getLineWidth(x, y) {
   const newWidth = Math.max(minWidth, Math.min(maxWidth, maxWidth / (velocity + 1)));
 
   // 🖊 add slight random "pressure" effect
-  const noise = (Math.random() - 0.5) * 0.2; // -0.1 to +0.1 variation
-  const smoothed = lastWidth * 0.7 + (newWidth + noise) * 0.3;
+noiseOffset = noiseOffset * 0.9 + (Math.random() - 0.5) * 0.1;
+const withNoise = newWidth + noiseOffset;
+const smoothed = lastWidth * 0.8 + withNoise * 0.2;
+
   lastWidth = smoothed;
   return smoothed;
 }
