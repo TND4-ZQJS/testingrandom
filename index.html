@@ -628,19 +628,31 @@ $("sigDone").addEventListener("click", ()=>{
 $("clearPreviewOwner").addEventListener("click", ()=>{
   localStorage.removeItem("sig_owner");
   $("preview_owner").innerHTML = `<span>Tap to Sign (Owner)</span>`;
+
+  // also clear from canvas if modal currently showing owner
+  if (sigTarget === "owner") signaturePad.clear();
 });
+
 $("clearPreviewWitness").addEventListener("click", ()=>{
   localStorage.removeItem("sig_witness");
   $("preview_witness").innerHTML = `<span>Tap to Sign (Witness)</span>`;
+
+  if (sigTarget === "witness") signaturePad.clear();
 });
+
 $("clearPreviewTrustee").addEventListener("click", ()=>{
   localStorage.removeItem("sig_trustee");
   $("preview_trustee").innerHTML = `<span>Tap to Sign (Trustee)</span>`;
+
+  if (sigTarget === "trustee") signaturePad.clear();
 });
+
 window.addEventListener("DOMContentLoaded", ()=>{
   ["owner","witness","trustee"].forEach(role=>{
     const saved = localStorage.getItem("sig_"+role);
-    if(saved){ $("preview_"+role).innerHTML = `<img alt="Signature ${role}" src="${saved}">`; }
+    if(saved){
+      $("preview_"+role).innerHTML = `<img alt="Signature ${role}" src="${saved}">`;
+    }
   });
 });
 
