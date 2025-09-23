@@ -608,7 +608,20 @@ function openSig(target){
   });
 }
 
-$("sigClear").addEventListener("click", ()=>{ signaturePad.clear(); });
+$("sigClear").addEventListener("click", ()=>{
+  signaturePad.clear();
+
+  if (sigTarget) {
+    // remove saved signature
+    localStorage.removeItem("sig_" + sigTarget);
+
+    // reset preview back to "Tap to Sign (…) "
+    $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${
+      sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1)
+    })</span>`;
+  }
+});
+  
 $("sigCancel").addEventListener("click", closeSigModal);
 function closeSigModal(){
   sigModal.style.display = "none";
