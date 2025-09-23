@@ -605,6 +605,20 @@ function openSig(target){
   // Wait for layout to settle then resize & restore (resizeCanvas will restore the saved PNG if present)
   requestAnimationFrame(()=>{
     resizeCanvas();
+
+  // Restore signature if one exists
+    const existing = localStorage.getItem("sig_" + target);
+    if (existing) {
+      const img = new Image();
+      img.onload = () => {
+        sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
+      };
+      img.src = existing;
+    } else {
+      // If none exists, reset preview back to "Tap to Sign"
+      const label = target.charAt(0).toUpperCase() + target.slice(1);
+      $("preview_" + target).innerHTML = `<span>Tap to Sign (${label})</span>`;
+    }
   });
 }
 
