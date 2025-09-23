@@ -642,11 +642,22 @@ function closeSigModal(){
   sigModal.setAttribute("aria-hidden", "true");
   sigTarget = null;
 }
-$("sigDone").addEventListener("click", ()=>{
-  if(!sigTarget) return;
-  const dataURL = signaturePad.toDataURL("image/png");
-  localStorage.setItem("sig_"+sigTarget, dataURL);
-  $("preview_"+sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
+  
+$("sigDone").addEventListener("click", () => {
+  if (!sigTarget) return;
+
+  if (signaturePad.isEmpty()) {
+    // If empty, clear storage and restore wording
+    localStorage.removeItem("sig_" + sigTarget);
+    const label = sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1);
+    $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${label})</span>`;
+  } else {
+    // Save drawn signature
+    const dataURL = signaturePad.toDataURL("image/png");
+    localStorage.setItem("sig_" + sigTarget, dataURL);
+    $("preview_" + sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
+  }
+
   closeSigModal();
 });
 
