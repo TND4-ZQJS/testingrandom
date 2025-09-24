@@ -593,31 +593,29 @@ function resizeCanvas() {
 }
 window.addEventListener("resize", resizeCanvas);
 
-function openSig(target){
+function openSig(target) {
   sigTarget = target;
-  $("sigModalTitle").textContent = 
-    target === 'owner' ? "Sign: Policy Owner" :
-    target === 'witness' ? "Sign: Witness" : "Sign: Trustee";
+  $("sigModalTitle").textContent =
+    target === "owner" ? "Sign: Policy Owner" :
+    target === "witness" ? "Sign: Witness" : "Sign: Trustee";
 
   sigModal.style.display = "block";
   sigModal.setAttribute("aria-hidden", "false");
 
-  // Wait for layout to settle then resize & restore (resizeCanvas will restore the saved PNG if present)
-  requestAnimationFrame(()=>{
+  requestAnimationFrame(() => {
     resizeCanvas();
+    signaturePad.clear(); // always start clean
 
-  // Restore signature if one exists
+    // restore saved signature (if any)
     const existing = localStorage.getItem("sig_" + target);
     if (existing) {
       const img = new Image();
       img.onload = () => {
+        // ✅ draw once, covering full canvas
+        sigCtx.clearRect(0, 0, sigCanvas.width, sigCanvas.height);
         sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
       };
       img.src = existing;
-    } else {
-      // If none exists, reset preview back to "Tap to Sign"
-      const label = target.charAt(0).toUpperCase() + target.slice(1);
-      $("preview_" + target).innerHTML = `<span>Tap to Sign (${label})</span>`;
     }
   });
 }
