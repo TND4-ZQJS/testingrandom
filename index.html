@@ -593,31 +593,31 @@ function resizeCanvas() {
 }
 window.addEventListener("resize", resizeCanvas);
 
-function openSig(target){
+function openSig(target) {
   sigTarget = target;
-  $("sigModalTitle").textContent = 
-    target === 'owner' ? "Sign: Policy Owner" :
-    target === 'witness' ? "Sign: Witness" : "Sign: Trustee";
+  $("sigModalTitle").textContent =
+    target === "owner"
+      ? "Sign: Policy Owner"
+      : target === "witness"
+      ? "Sign: Witness"
+      : "Sign: Trustee";
 
   sigModal.style.display = "block";
   sigModal.setAttribute("aria-hidden", "false");
 
-  // Wait for layout to settle then resize & restore (resizeCanvas will restore the saved PNG if present)
-  requestAnimationFrame(()=>{
+  // Wait for layout to settle then resize & restore
+  requestAnimationFrame(() => {
     resizeCanvas();
+    signaturePad.clear();
 
-  // Restore signature if one exists
-    const existing = localStorage.getItem("sig_" + target);
-    if (existing) {
-      const img = new Image();
-      img.onload = () => {
-        sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
-      };
-      img.src = existing;
-    } else {
-      // If none exists, reset preview back to "Tap to Sign"
-      const label = target.charAt(0).toUpperCase() + target.slice(1);
-      $("preview_" + target).innerHTML = `<span>Tap to Sign (${label})</span>`;
+    // Restore from saved strokes (JSON), not from PNG
+    const saved = localStorage.getItem("sig_" + target);
+    if (saved) {
+      try {
+        signaturePad.fromData(JSON.parse(saved));
+      } catch (e) {
+        console.warn("Could not parse saved signature", e);
+      }
     }
   });
 }
@@ -652,10 +652,14 @@ $("sigDone").addEventListener("click", () => {
     const label = sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1);
     $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${label})</span>`;
   } else {
-    // Save drawn signature
+    // 1. Save strokes (vector JSON)
+    const strokes = signaturePad.toData();
+    localStorage.setItem("sig_" + sigTarget, JSON.stringify(strokes));
+
+    // 2. Also create PNG for preview box
     const dataURL = signaturePad.toDataURL("image/png");
-    localStorage.setItem("sig_" + sigTarget, dataURL);
-    $("preview_" + sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
+    $("preview_" + sigTarget).innerHTML =
+      `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
   }
 
   closeSigModal();
