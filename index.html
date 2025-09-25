@@ -605,6 +605,7 @@ function openSig(target){
   // Wait for layout to settle then resize & restore (resizeCanvas will restore the saved PNG if present)
   requestAnimationFrame(()=>{
     resizeCanvas();
+  });
 }
 
 $("sigClear").addEventListener("click", ()=>{
