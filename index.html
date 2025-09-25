@@ -568,29 +568,18 @@ window.addEventListener("resize", () => {
   }
 });
 
-
-function openSig(target) {
+function openSig(target){
   sigTarget = target;
-  $("sigModalTitle").textContent =
+  $("sigModalTitle").textContent = 
     target === 'owner' ? "Sign: Policy Owner" :
     target === 'witness' ? "Sign: Witness" : "Sign: Trustee";
 
   sigModal.style.display = "block";
   sigModal.setAttribute("aria-hidden", "false");
 
-  requestAnimationFrame(() => {
-    // 1. Resize the canvas first
-    resizeCanvasForDPI();
-
-    // 2. Load the saved signature if it exists
-    const existing = localStorage.getItem("sig_" + target);
-    if (existing) {
-      signaturePad.fromDataURL(existing, {
-        ratio: window.devicePixelRatio || 1,
-        width: sigCanvas.offsetWidth,
-        height: sigCanvas.offsetHeight,
-      });
-    }
+  // Wait for layout to settle then resize & restore
+  requestAnimationFrame(()=> {
+    resizeCanvas();
   });
 }
 
