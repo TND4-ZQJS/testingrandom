@@ -531,113 +531,80 @@ addNomineeBtn.disabled = nomineeCount >= MAX_NOMINEES;
 
 /* ---------- SIGNATURE MODAL LOGIC (Owner + Payor) with HiDPI scaling ---------- */
 /* ---------- SIGNATURE MODAL LOGIC ---------- */
+/* Corrected Signature Pad Logic */
 let sigTarget = null;
 const sigModal = $("sigModal");
 const sigCanvas = $("sigCanvas");
-const sigCtx = sigCanvas.getContext("2d");
 
+// Initialize SignaturePad once
 const signaturePad = new SignaturePad(sigCanvas, {
-  minWidth: 0.7,              // Thin lines when moving fast
-  maxWidth: 2.5,              // Thicker when moving slowly
-  velocityFilterWeight: 0.6,  // More responsive to speed, but still smooth
-  minDistance: 3,             // Capture detail without too many points
-  throttle: 16,               // ~60 FPS, smooth without lag
-  penColor: "black",          // Signature color
-  backgroundColor: "rgba(0,0,0,0)" // Transparent background
-  //minWidth: 1,
-  //maxWidth: 3,
-  //penColor: "black",
-  //backgroundColor: "rgba(0,0,0,0)"
+  minWidth: 0.7,
+  maxWidth: 2.5,
+  penColor: "black",
+  backgroundColor: "rgba(0,0,0,0)",
 });
 
-function resizeCanvas() {
-  const ratio = Math.max(window.devicePixelRatio || 1, 1);
-
-  // If modal is open and sigTarget exists, prefer the stored PNG for that role.
-  // Otherwise fall back to the current canvas content.
-  const storageKey = sigTarget ? "sig_" + sigTarget : null;
-  const savedFromStorage = storageKey ? localStorage.getItem(storageKey) : null;
-  const sourceData = savedFromStorage || sigCanvas.toDataURL();
-
-  // Set canvas size in device pixels (prevent subpixel rounding issues)
-  sigCanvas.width = Math.floor(sigCanvas.offsetWidth * ratio);
-  sigCanvas.height = Math.floor(sigCanvas.offsetHeight * ratio);
-
-  // Reset transform and set scale so drawing coordinates are in CSS pixels
-  sigCtx.setTransform(ratio, 0, 0, ratio, 0, 0);
-
-  // CSS size (in drawing units now) for layout math
-  const cssW = sigCanvas.offsetWidth;
-  const cssH = sigCanvas.offsetHeight;
-
-  // If we have an image source (PNG), draw it proportionally and center it
-  if (sourceData && typeof sourceData === "string" && sourceData.indexOf("data:image") === 0) {
-    const img = new Image();
-    img.onload = () => {
-      // clear using CSS coordinate space
-      sigCtx.clearRect(0, 0, cssW, cssH);
-
-      // Scale image proportionally to fit inside canvas area (CSS pixels)
-      const scale = Math.min(cssW / img.width, cssH / img.height);
-      const x = (cssW - img.width * scale) / 2;
-      const y = (cssH - img.height * scale) / 2;
-
-      // draw using CSS units (ctx is already scaled by devicePixelRatio)
-      sigCtx.drawImage(img, x, y, img.width * scale, img.height * scale);
-    };
-    img.src = sourceData;
-  } else {
-    // No image to draw — clear the pad so it's ready for a new signature
-    signaturePad.clear();
-  }
+// A single resize function that just sets the canvas dimensions
+function resizeCanvasForDPI() {
+  const dpr = window.devicePixelRatio || 1;
+  sigCanvas.width = sigCanvas.offsetWidth * dpr;
+  sigCanvas.height = sigCanvas.offsetHeight * dpr;
+  sigCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  signaturePad.clear(); // Important: Clear the pad after resizing
 }
-window.addEventListener("resize", resizeCanvas);
+window.addEventListener("resize", () => {
+  if (sigModal.getAttribute("aria-hidden") === "false") {
+    resizeCanvasForDPI();
+    
+    // Now load the saved data from local storage if the modal is open
+    const existing = localStorage.getItem("sig_" + sigTarget);
+    if (existing) {
+      signaturePad.fromDataURL(existing, {
+        ratio: window.devicePixelRatio || 1,
+        width: sigCanvas.offsetWidth,
+        height: sigCanvas.offsetHeight,
+      });
+    }
+  }
+});
 
-function openSig(target){
+
+function openSig(target) {
   sigTarget = target;
-  $("sigModalTitle").textContent = 
+  $("sigModalTitle").textContent =
     target === 'owner' ? "Sign: Policy Owner" :
     target === 'witness' ? "Sign: Witness" : "Sign: Trustee";
 
   sigModal.style.display = "block";
   sigModal.setAttribute("aria-hidden", "false");
 
-  // Wait for layout to settle then resize & restore (resizeCanvas will restore the saved PNG if present)
-  requestAnimationFrame(()=>{
-    resizeCanvas();
+  requestAnimationFrame(() => {
+    // 1. Resize the canvas first
+    resizeCanvasForDPI();
 
-  // Restore signature if one exists
+    // 2. Load the saved signature if it exists
     const existing = localStorage.getItem("sig_" + target);
     if (existing) {
-      const img = new Image();
-      img.onload = () => {
-        sigCtx.drawImage(img, 0, 0, sigCanvas.width, sigCanvas.height);
-      };
-      img.src = existing;
-    } else {
-      // If none exists, reset preview back to "Tap to Sign"
-      const label = target.charAt(0).toUpperCase() + target.slice(1);
-      $("preview_" + target).innerHTML = `<span>Tap to Sign (${label})</span>`;
+      signaturePad.fromDataURL(existing, {
+        ratio: window.devicePixelRatio || 1,
+        width: sigCanvas.offsetWidth,
+        height: sigCanvas.offsetHeight,
+      });
     }
   });
 }
 
-$("sigClear").addEventListener("click", ()=>{
+$("sigClear").addEventListener("click", () => {
   signaturePad.clear();
-
   if (sigTarget) {
-    // remove saved signature
     localStorage.removeItem("sig_" + sigTarget);
-
-    // reset preview back to "Tap to Sign (…) "
-    $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${
-      sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1)
-    })</span>`;
+    const label = sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1);
+    $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${label})</span>`;
   }
 });
   
 $("sigCancel").addEventListener("click", closeSigModal);
-function closeSigModal(){
+function closeSigModal() {
   sigModal.style.display = "none";
   sigModal.setAttribute("aria-hidden", "true");
   sigTarget = null;
@@ -647,12 +614,10 @@ $("sigDone").addEventListener("click", () => {
   if (!sigTarget) return;
 
   if (signaturePad.isEmpty()) {
-    // If empty, clear storage and restore wording
     localStorage.removeItem("sig_" + sigTarget);
     const label = sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1);
     $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${label})</span>`;
   } else {
-    // Save drawn signature
     const dataURL = signaturePad.toDataURL("image/png");
     localStorage.setItem("sig_" + sigTarget, dataURL);
     $("preview_" + sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
@@ -660,6 +625,7 @@ $("sigDone").addEventListener("click", () => {
 
   closeSigModal();
 });
+
 
 
 /* Clear preview buttons + restore previews on load */
