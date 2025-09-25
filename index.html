@@ -632,20 +632,23 @@ function closeSigModal(){
 $("sigDone").addEventListener("click", () => {
   if (!sigTarget) return;
 
-  if (signaturePad.isEmpty()) {
-    // If empty, clear storage and restore wording
-    localStorage.removeItem("sig_" + sigTarget);
+  // Always take snapshot from the canvas (even if unchanged)
+  const dataURL = sigCanvas.toDataURL("image/png");
+
+  if (signaturePad.isEmpty() && !localStorage.getItem("sig_" + sigTarget)) {
+    // If no strokes and nothing saved before → treat as empty
     const label = sigTarget.charAt(0).toUpperCase() + sigTarget.slice(1);
     $("preview_" + sigTarget).innerHTML = `<span>Tap to Sign (${label})</span>`;
+    localStorage.removeItem("sig_" + sigTarget);
   } else {
-    // Save drawn signature
-    const dataURL = signaturePad.toDataURL("image/png");
+    // Save whatever is currently visible on the canvas
     localStorage.setItem("sig_" + sigTarget, dataURL);
     $("preview_" + sigTarget).innerHTML = `<img alt="Signature ${sigTarget}" src="${dataURL}">`;
   }
 
   closeSigModal();
 });
+
 
 
 /* Clear preview buttons + restore previews on load */
